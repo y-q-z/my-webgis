@@ -40,8 +40,8 @@
     <header class="header">
         <div class="logo">🌦️ 气象与空间智能分析平台 WebGIS</div>
         <div class="header-right">
-            <el-tag type="success" effect="dark">空间引擎: 在线 (靶向多灾种版)</el-tag>
-            <span style="font-size: 14px;">管理员 (杨帆)</span>
+            <el-tag type="success" effect="dark">空间引擎: 在线</el-tag>
+            <span style="font-size: 14px;"></span>
         </div>
     </header>
 
@@ -51,7 +51,7 @@
                 
                 <el-tab-pane label="图层" name="module1">
                     <div class="feature-box" style="border-left: 4px solid #409EFF;">
-                        <div class="module-title" style="color: #409EFF;">🗺️ 多源基础底图 (实验三拓展)</div>
+                        <div class="module-title" style="color: #409EFF;">🗺️ 多源基础底图</div>
                         <el-select v-model="basemapType" @change="changeBasemap" size="small" style="width: 100%;">
                             <el-option label="OSM 标准开源地图" value="osm"></el-option>
                             <el-option label="ArcGIS 遥感卫星图" value="satellite"></el-option>
