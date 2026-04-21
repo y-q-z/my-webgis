@@ -223,6 +223,7 @@
 
 <script>
     const { createApp, ref, reactive, onMounted } = Vue;
+    const WEATHER_KEY = '7f2f4a7cd207481a8f88a8a406d43c79'; // 你的和风天气 KEY
     const { ElMessage } = ElementPlus; 
 
     createApp({
@@ -503,20 +504,48 @@ map.getView().on('change:resolution', () => {
     stationLayer.setVisible(layers.value.stations);
     provinceLayer.setVisible(layers.value.province);
 });
-                map.on('singleclick', function (evt) {
+               map.on('singleclick', async function (evt) {
                     const feature = map.forEachFeatureAtPixel(evt.pixel, function(f) { return f; });
                     const coordinate = evt.coordinate;
+                    
                     if (feature && feature.get('name') && feature.get('code')) {
-                        document.getElementById('popup-title').innerText = "📊 " + feature.get('name') + " (" + feature.get('code') + ")";
-                        const statusColor = feature.get('status') === '正常' ? 'green' : 'red';
-                        document.getElementById('popup-info').innerHTML = `
-                            经度: ${feature.get('lon')} <br>纬度: ${feature.get('lat')} <br><hr style="border:0; border-top:1px dashed #ccc; margin:8px 0;">
-                            <b>当前气温:</b> <span style="color:red;">${feature.get('temp')} ℃</span><br>
-                            <b>降水量:</b> <span style="color:blue;">${feature.get('rain')} mm</span><br>
-                            <b>平均风速:</b> <span>${feature.get('wind')} m/s</span><br>
-                            <b>运行状态:</b> <span style="color:${statusColor}; font-weight:bold;">${feature.get('status')}</span>
-                        `;
+                        // 1. 获取点击位置的原始坐标
+                        const lon = feature.get('lon');
+                        const lat = feature.get('lat');
+
+                        // 2. 显示“正在同步”提示
+                        document.getElementById('popup-title').innerText = "🔄 正在同步实时观测数据...";
+                        document.getElementById('popup-info').innerHTML = "正在连接国家气象云端接口...";
                         overlay.setPosition(coordinate);
+
+                        try {
+                            // 3. 发起真实的云端 API 请求
+                            const url = `https://devapi.qweather.com/v7/weather/now?location=${lon},${lat}&key=${WEATHER_KEY}`;
+                            const res = await fetch(url);
+                            const data = await res.json();
+
+                            if (data.code === '200') {
+                                // 4. 成功获取后，用真实数据覆盖模拟数据
+                                const realTemp = data.now.temp;
+                                const realRain = data.now.precip;
+                                const realWind = data.now.windSpeed;
+                                const updateTime = data.updateTime.substring(11, 16); // 截取时间
+
+                                document.getElementById('popup-title').innerText = "✅ " + feature.get('name') + " (实时数据)";
+                                document.getElementById('popup-info').innerHTML = `
+                                    经度: ${lon} <br>纬度: ${lat} <br>
+                                    <hr style="border:0; border-top:1px dashed #ccc; margin:8px 0;">
+                                    <b>最新气温:</b> <span style="color:red; font-size:16px;">${realTemp} ℃</span><br>
+                                    <b>实时降水:</b> <span style="color:blue;">${realRain} mm</span><br>
+                                    <b>实时风速:</b> <span>${realWind} m/s</span><br>
+                                    <div style="font-size:11px; color:#999; margin-top:5px;">观测时间：今日 ${updateTime}</div>
+                                `;
+                            }
+                        } catch (e) {
+                            // 如果请求失败，显示报错信息
+                            document.getElementById('popup-title').innerText = "⚠️ 接口连接异常";
+                            document.getElementById('popup-info').innerHTML = "无法获取实时数据，请检查网络或 API Key 配额。";
+                        }
                     } else {
                         overlay.setPosition(undefined);
                     }
