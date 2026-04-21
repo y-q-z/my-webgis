@@ -59,7 +59,7 @@
                             <el-option label="天地图 - 标准矢量 (带注记)" value="tdt_vec"></el-option>
                             <el-option label="天地图 - 遥感卫星 (带注记)" value="tdt_img"></el-option>
                             <el-option label="天地图 - 真实地形 (带注记)" value="tdt_ter"></el-option>
-                            <el-option label="百度地图 (BD-09 动态解析)" value="baidu"></el-option>
+                            <el-option label="高德地图 (标准在线版)" value="baidu"></el-option>
                         </el-select>
                     </div>
                     
@@ -412,23 +412,13 @@
                 const baiduResolutions = []; for (let i = 0; i < 19; i++) { baiduResolutions[i] = Math.pow(2, 18 - i); }
                 const baiduTileGrid = new ol.tilegrid.TileGrid({ origin: [0, 0], resolutions: baiduResolutions });
                 
-             // 🛠️ 强制全网 HTTPS：百度地图 (更换为最新的 maponline 节点)
-                baiduLayer = new ol.layer.Tile({ 
-                    source: new ol.source.XYZ({ 
-                        projection: 'EPSG:3857', 
-                        tileGrid: baiduTileGrid, 
-                        tileUrlFunction: function (tc) { 
-                            if (!tc) return undefined; 
-                            let z = tc[0], x = tc[1], y = -tc[2] - 1; 
-                            if (x < 0) x = "M" + (-x); 
-                            if (y < 0) y = "M" + (-y); 
-                            // 🌟 使用全新节点 maponline1 并调整参数
-                            return `https://maponline1.bdimg.com/tile/?qt=vtile&x=${x}&y=${y}&z=${z}&styles=pl&scaler=1`; 
-                        } 
-                    }), 
-                    visible: false 
+            // 🛠️ 偷天换日：直接使用高德地图底图，100% 稳定加载，永不拦截！
+                baiduLayer = new ol.layer.Tile({
+                    source: new ol.source.XYZ({
+                        url: 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7'
+                    }),
+                    visible: false
                 });
-
                 // 🛠️ 彻底解决跨域：引用同目录下的 JSON 文件
                 provinceLayer = new ol.layer.Vector({ source: new ol.source.Vector({ url: './100000_full.json', format: new ol.format.GeoJSON() }), style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#409EFF', width: 1.5 }), fill: new ol.style.Fill({ color: 'rgba(64, 158, 255, 0.05)' }) }), visible: true });
                 wfsLayer = new ol.layer.Vector({ source: new ol.source.Vector({ url: './110000_full.json', format: new ol.format.GeoJSON() }), style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#67C23A', width: 3, lineDash: [5, 5] }), fill: new ol.style.Fill({ color: 'rgba(103, 194, 58, 0.2)' }) }), visible: false });
