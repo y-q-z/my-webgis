@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
     <title>国家气象空间智能分析平台 WebGIS</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
@@ -411,8 +412,22 @@
                 const baiduResolutions = []; for (let i = 0; i < 19; i++) { baiduResolutions[i] = Math.pow(2, 18 - i); }
                 const baiduTileGrid = new ol.tilegrid.TileGrid({ origin: [0, 0], resolutions: baiduResolutions });
                 
-                // 🛠️ 强制全网 HTTPS：百度地图
-                baiduLayer = new ol.layer.Tile({ source: new ol.source.XYZ({ projection: 'EPSG:3857', tileGrid: baiduTileGrid, tileUrlFunction: function (tc) { if (!tc) return undefined; let z = tc[0], x = tc[1], y = -tc[2] - 1; if (x < 0) x = "M" + (-x); if (y < 0) y = "M" + (-y); return `https://online3.map.bdimg.com/onlinelabel/?qt=tile&x=${x}&y=${y}&z=${z}&styles=pl&udt=20151021&scaler=1&p=1`; } }), visible: false });
+             // 🛠️ 强制全网 HTTPS：百度地图 (更换为最新的 maponline 节点)
+                baiduLayer = new ol.layer.Tile({ 
+                    source: new ol.source.XYZ({ 
+                        projection: 'EPSG:3857', 
+                        tileGrid: baiduTileGrid, 
+                        tileUrlFunction: function (tc) { 
+                            if (!tc) return undefined; 
+                            let z = tc[0], x = tc[1], y = -tc[2] - 1; 
+                            if (x < 0) x = "M" + (-x); 
+                            if (y < 0) y = "M" + (-y); 
+                            // 🌟 使用全新节点 maponline1 并调整参数
+                            return `https://maponline1.bdimg.com/tile/?qt=vtile&x=${x}&y=${y}&z=${z}&styles=pl&scaler=1`; 
+                        } 
+                    }), 
+                    visible: false 
+                });
 
                 // 🛠️ 彻底解决跨域：引用同目录下的 JSON 文件
                 provinceLayer = new ol.layer.Vector({ source: new ol.source.Vector({ url: './100000_full.json', format: new ol.format.GeoJSON() }), style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#409EFF', width: 1.5 }), fill: new ol.style.Fill({ color: 'rgba(64, 158, 255, 0.05)' }) }), visible: true });
