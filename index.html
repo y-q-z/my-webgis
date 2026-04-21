@@ -537,7 +537,7 @@ map.getView().on('change:resolution', () => {
     stationLayer.setVisible(layers.value.stations);
     provinceLayer.setVisible(layers.value.province);
 });
-               // 🌟 终极版：地图红点点击事件（带防卡死和双向同步）
+              // 🌟 严谨版：地图红点点击事件
                 map.on('singleclick', async function (evt) {
                     const feature = map.forEachFeatureAtPixel(evt.pixel, function(f) { return f; });
                     const coordinate = evt.coordinate;
@@ -547,24 +547,22 @@ map.getView().on('change:resolution', () => {
                         const lat = feature.get('lat');
                         const stationCode = feature.get('code');
 
-                        // 1. 先弹出“正在同步”的提示框
                         document.getElementById('popup-title').innerText = "🔄 正在同步实时观测数据...";
                         document.getElementById('popup-info').innerHTML = "正在连接国家气象云端接口...";
                         overlay.setPosition(coordinate);
 
                         try {
-                            // 2. 发起真实的云端 API 请求
                             const url = `https://devapi.qweather.com/v7/weather/now?location=${lon},${lat}&key=${WEATHER_KEY}`;
                             const res = await fetch(url);
                             const data = await res.json();
 
                             if (data.code === '200') {
+                                // 【成功】：更新为真实数据
                                 const realTemp = data.now.temp;
                                 const realRain = data.now.precip;
                                 const realWind = data.now.windSpeed;
                                 const updateTime = data.updateTime.substring(11, 16);
 
-                                // 3. 🌟 数据同步魔法：更新左侧 Vue 列表的假数据
                                 const targetStation = stationDatabase.find(s => s.code === stationCode);
                                 if (targetStation) {
                                     targetStation.temp = parseFloat(realTemp);
@@ -573,7 +571,6 @@ map.getView().on('change:resolution', () => {
                                     targetStation.status = '实时在线';
                                 }
 
-                                // 4. 更新地图上的气泡框
                                 document.getElementById('popup-title').innerText = "✅ " + feature.get('name') + " (实时数据)";
                                 document.getElementById('popup-info').innerHTML = `
                                     经度: ${lon} <br>纬度: ${lat} <br>
@@ -584,17 +581,32 @@ map.getView().on('change:resolution', () => {
                                     <div style="font-size:11px; color:#999; margin-top:5px;">观测时间：今日 ${updateTime}</div>
                                 `;
                             } else {
-                                // 🌟 错误处理：防卡死！如果权限不对，直接报错
+                                // 🌟 【错误】：强制同步清空左侧列表数据！
+                                const targetStation = stationDatabase.find(s => s.code === stationCode);
+                                if (targetStation) {
+                                    targetStation.temp = '--';
+                                    targetStation.rain = '--';
+                                    targetStation.wind = '--';
+                                    targetStation.status = '获取失败';
+                                }
+
                                 document.getElementById('popup-title').innerText = "⚠️ API 权限被拒绝";
-                                document.getElementById('popup-info').innerHTML = `<span style="color:red;">错误码：${data.code}</span><br>请检查和风天气控制台的 API 限制。`;
+                                document.getElementById('popup-info').innerHTML = `<span style="color:red;">错误码：${data.code || '请求受限'}</span><br>云端凭据生效中，请耐心等待。`;
                             }
                         } catch (e) {
-                            // 🌟 错误处理：防卡死！如果断网，直接提示
+                            // 🌟 【断网】：强制同步清空左侧列表数据
+                            const targetStation = stationDatabase.find(s => s.code === stationCode);
+                            if (targetStation) {
+                                targetStation.temp = '--';
+                                targetStation.rain = '--';
+                                targetStation.wind = '--';
+                                targetStation.status = '连接异常';
+                            }
+                            
                             document.getElementById('popup-title').innerText = "⚠️ 接口连接异常";
                             document.getElementById('popup-info').innerHTML = "无法连接云端，请检查网络或刷新页面。";
                         }
                     } else {
-                        // 点击空白处，关闭弹窗
                         overlay.setPosition(undefined);
                     }
                 });
