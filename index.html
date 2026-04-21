@@ -497,12 +497,12 @@
                     view: new ol.View({ center: ol.proj.fromLonLat([105.0, 36.0]), zoom: 4, minZoom: 3 })
                 });
 
-                map.getView().on('change:resolution', () => {
-                    const zoom = map.getView().getZoom();
-                    if (zoom < 5) { stationLayer.setVisible(false); provinceLayer.setVisible(layers.value.province); } 
-                    else { stationLayer.setVisible(layers.value.stations); }
-                });
-
+              // 修改后的代码：
+map.getView().on('change:resolution', () => {
+    // 直接根据复选框状态设置显示，不再受 zoom 大小影响
+    stationLayer.setVisible(layers.value.stations);
+    provinceLayer.setVisible(layers.value.province);
+});
                 map.on('singleclick', function (evt) {
                     const feature = map.forEachFeatureAtPixel(evt.pixel, function(f) { return f; });
                     const coordinate = evt.coordinate;
