@@ -326,22 +326,55 @@
                 ElMessage({ message: '已重置所有查询条件', type: 'success' });
             };
 
-            const flyToStation = (station) => {
+          // 🌟 升级版的左侧列表点击事件：同步真实数据
+            const flyToStation = async (station) => {
                 if (!map) return;
                 const targetCoord = ol.proj.fromLonLat([station.lon, station.lat]);
                 map.getView().animate({ center: targetCoord, zoom: 9, duration: 1500 });
-                document.getElementById('popup-title').innerText = "📊 " + station.name + " (" + station.code + ")";
-                const statusColor = station.status === '正常' ? 'green' : 'red';
-                document.getElementById('popup-info').innerHTML = `
-                    经度: ${station.lon} <br>纬度: ${station.lat} <br><hr style="border:0; border-top:1px dashed #ccc; margin:8px 0;">
-                    <b>当前气温:</b> <span style="color:red;">${station.temp} ℃</span><br>
-                    <b>降水量:</b> <span style="color:blue;">${station.rain} mm</span><br>
-                    <b>平均风速:</b> <span>${station.wind} m/s</span><br>
-                    <b>运行状态:</b> <span style="color:${statusColor}; font-weight:bold;">${station.status}</span>
-                `;
+                
+                // 1. 先弹出“正在同步”的提示框
+                document.getElementById('popup-title').innerText = "🔄 正在同步实时观测数据...";
+                document.getElementById('popup-info').innerHTML = "正在连接国家气象云端接口...";
                 overlay.setPosition(targetCoord);
-            };
 
+                try {
+                    // 2. 发起真实 API 请求
+                    const url = `https://devapi.qweather.com/v7/weather/now?location=${station.lon},${station.lat}&key=${WEATHER_KEY}`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+
+                    if (data.code === '200') {
+                        // 3. 请求成功：更新左侧列表里的响应式数据
+                        const realTemp = data.now.temp;
+                        const realRain = data.now.precip;
+                        const realWind = data.now.windSpeed;
+                        const updateTime = data.updateTime.substring(11, 16);
+
+                        station.temp = parseFloat(realTemp);
+                        station.rain = parseFloat(realRain);
+                        station.wind = parseFloat(realWind);
+                        station.status = '实时在线';
+
+                        // 4. 更新地图上的气泡框
+                        document.getElementById('popup-title').innerText = "✅ " + station.name + " (实时数据)";
+                        document.getElementById('popup-info').innerHTML = `
+                            经度: ${station.lon} <br>纬度: ${station.lat} <br>
+                            <hr style="border:0; border-top:1px dashed #ccc; margin:8px 0;">
+                            <b>最新气温:</b> <span style="color:red; font-size:16px;">${realTemp} ℃</span><br>
+                            <b>实时降水:</b> <span style="color:blue;">${realRain} mm</span><br>
+                            <b>实时风速:</b> <span>${realWind} m/s</span><br>
+                            <div style="font-size:11px; color:#999; margin-top:5px;">观测时间：今日 ${updateTime}</div>
+                        `;
+                    } else {
+                        // 🌟 新增错误处理：如果权限不对，直接显示出来
+                        document.getElementById('popup-title').innerText = "⚠️ API 权限被拒绝";
+                        document.getElementById('popup-info').innerHTML = `<span style="color:red;">错误码：${data.code}</span><br>请在和风天气控制台中将 API 限制改为“不限制”。`;
+                    }
+                } catch (e) {
+                    document.getElementById('popup-title').innerText = "⚠️ 接口连接异常";
+                    document.getElementById('popup-info').innerHTML = "无法连接云端，请检查网络。";
+                }
+            };
             const startSpatialQuery = (type) => {
                 if (drawInteraction) map.removeInteraction(drawInteraction);
                 drawSource.clear(); 
