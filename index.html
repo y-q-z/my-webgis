@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="referrer" content="no-referrer">
+    
     <title>国家气象空间智能分析平台 WebGIS</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
@@ -263,7 +263,7 @@
 
             const TDT_KEY = '7df45c9493781a8cccb80d5f281088c0';
 
-            const stationDatabase = [
+            const stationDatabase = reactive([
                 { name: '北京总站', code: 'V54511', lon: 116.40, lat: 39.90, temp: 22.5, rain: 0.0, wind: 3.2, status: '正常' },
                 { name: '天津气象局', code: 'V54527', lon: 117.20, lat: 39.13, temp: 23.1, rain: 0.0, wind: 4.5, status: '正常' },
                 { name: '石家庄基准站', code: 'V53698', lon: 114.52, lat: 38.05, temp: 25.0, rain: 0.0, wind: 2.1, status: '正常' },
@@ -300,7 +300,7 @@
                 { name: '银川气象局', code: 'V53614', lon: 106.23, lat: 38.49, temp: 19.8, rain: 0.0, wind: 4.1, status: '正常' },
                 { name: '乌鲁木齐站', code: 'V51463', lon: 87.61, lat: 43.79, temp: 15.2, rain: 0.0, wind: 5.5, status: '大风预警' },
                 { name: '喀什边缘站', code: 'V51709', lon: 75.99, lat: 39.47, temp: 17.5, rain: 0.0, wind: 8.5, status: '沙尘预警' }
-            ];
+            ]);
 
             const handleSearch = () => {
                 hasSearched.value = true;
@@ -531,6 +531,16 @@ map.getView().on('change:resolution', () => {
                                 const realWind = data.now.windSpeed;
                                 const updateTime = data.updateTime.substring(11, 16); // 截取时间
 
+                                // 🌟 新增：数据同步魔法！找到左侧列表里的这个气象站，把它的假数据替换成真数据
+                                const stationCode = feature.get('code');
+                                const targetStation = stationDatabase.find(s => s.code === stationCode);
+                                if (targetStation) {
+                                    targetStation.temp = parseFloat(realTemp);
+                                    targetStation.rain = parseFloat(realRain);
+                                    targetStation.wind = parseFloat(realWind);
+                                    targetStation.status = '实时在线';
+                                }
+                                
                                 document.getElementById('popup-title').innerText = "✅ " + feature.get('name') + " (实时数据)";
                                 document.getElementById('popup-info').innerHTML = `
                                     经度: ${lon} <br>纬度: ${lat} <br>
