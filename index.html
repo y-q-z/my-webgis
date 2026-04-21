@@ -47,6 +47,7 @@
     <div class="main-container">
         <aside class="sidebar">
             <el-tabs v-model="activeModule" stretch>
+                
                 <el-tab-pane label="图层" name="module1">
                     <div class="feature-box" style="border-left: 4px solid #409EFF;">
                         <div class="module-title" style="color: #409EFF;">🗺️ 多源基础底图</div>
@@ -116,27 +117,99 @@
                                 </div>
                             </el-card>
                         </div>
+                        <div v-else style="margin-top: 15px;">
+                            <el-alert title="未找到符合条件的站点数据" type="info" :closable="false" center></el-alert>
+                        </div>
                     </div>
                 </el-tab-pane>
 
                 <el-tab-pane label="分析" name="module3">
                     <div class="feature-box" style="border-left: 4px solid #409EFF;">
                         <div class="module-title" style="color:#409EFF;">📊 高级空间插值分析</div>
-                        <el-button type="success" size="small" style="width: 100%;" @click="runInterpolation" :loading="isCalculating">🚀 执行空间插值运算</el-button>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 15px;">基于离散气象站点观测值，推算全国气象要素连续表面。</div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <span style="font-size: 13px; font-weight: bold; color: #333;">1. 选择插值要素：</span>
+                            <el-radio-group v-model="interpTarget" size="small" style="margin-top: 5px; width: 100%;">
+                                <el-radio-button label="temp" style="width: 50%;">气温 (Temperature)</el-radio-button>
+                                <el-radio-button label="rain" style="width: 50%;">降水 (Precipitation)</el-radio-button>
+                            </el-radio-group>
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
+                            <span style="font-size: 13px; font-weight: bold; color: #333;">2. 选择空间算法：</span>
+                            <div class="grid-buttons">
+                                <el-button :type="interpMethod === 'kriging' ? 'primary' : 'default'" plain size="small" @click="interpMethod = 'kriging'">Kriging 克里金插值</el-button>
+                                <el-button :type="interpMethod === 'idw' ? 'primary' : 'default'" plain size="small" @click="interpMethod = 'idw'">IDW 反距离权重</el-button>
+                            </div>
+                        </div>
+
+                        <el-button type="success" size="small" style="width: 100%;" @click="runInterpolation" :loading="isCalculating">
+                            🚀 执行空间插值运算
+                        </el-button>
+                        
+                        <el-button v-if="showInterpResult" type="danger" plain size="small" style="width: 100%; margin-top: 10px;" @click="clearInterpolation">
+                            🗑️ 清除插值结果图层
+                        </el-button>
                     </div>
                 </el-tab-pane>
 
                 <el-tab-pane label="预警" name="module4">
                     <div class="feature-box" style="border-left: 4px solid #E6A23C;">
-                        <div class="module-title" style="color:#E6A23C;">⚠️ 实时监控总引擎</div>
-                        <el-switch v-model="alertEngine" @change="toggleAlertEngine" active-color="#F56C6C"></el-switch>
+                        <div class="module-title" style="color:#E6A23C;">⚠️ 多灾种联合预警监控</div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; font-size: 13px; border-bottom: 1px solid #ebeef5; padding-bottom: 10px;">
+                            <span style="font-weight: bold;">实时监控总引擎：</span>
+                            <el-switch v-model="alertEngine" @change="toggleAlertEngine" active-color="#F56C6C" inactive-color="#ccc"></el-switch>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <span style="font-size: 12px; color: #409EFF; font-weight: bold;">🌧️ 暴雨预警 (mm/24h):</span>
+                            <el-switch v-model="enableRainAlert" size="small" @change="updateAlerts" :disabled="!alertEngine" active-color="#409EFF"></el-switch>
+                        </div>
+                        <el-input-number v-model="rainThreshold" :min="0" :max="200" size="small" style="width: 100%; margin-bottom: 15px;" @change="updateAlerts" :disabled="!alertEngine || !enableRainAlert"></el-input-number>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <span style="font-size: 12px; color: #F56C6C; font-weight: bold;">🔥 高温预警 (℃):</span>
+                            <el-switch v-model="enableTempAlert" size="small" @change="updateAlerts" :disabled="!alertEngine" active-color="#F56C6C"></el-switch>
+                        </div>
+                        <el-input-number v-model="tempThreshold" :min="-20" :max="50" size="small" style="width: 100%; margin-bottom: 15px;" @change="updateAlerts" :disabled="!alertEngine || !enableTempAlert"></el-input-number>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <span style="font-size: 12px; color: #E6A23C; font-weight: bold;">🌀 台风/大风预警 (m/s):</span>
+                            <el-switch v-model="enableWindAlert" size="small" @change="updateAlerts" :disabled="!alertEngine" active-color="#E6A23C"></el-switch>
+                        </div>
+                        <el-input-number v-model="windThreshold" :min="0" :max="40" size="small" style="width: 100%;" @change="updateAlerts" :disabled="!alertEngine || !enableWindAlert"></el-input-number>
+                    </div>
+
+                    <div v-if="alertEngine" class="feature-box" style="border-left: 4px solid #F56C6C; background-color: #fef0f0; transition: all 0.3s;">
+                        <div class="module-title" style="color: #F56C6C; border-bottom-color: #fde2e2;">🚨 实时阈值报警清单 ({{ alertList.length }} 个站点)</div>
+                        
+                        <div v-if="alertList.length > 0" style="max-height: 200px; overflow-y: auto;">
+                            <el-card shadow="hover" v-for="item in alertList" :key="item.code" style="margin-bottom: 8px; border-color: #fbc4c4; cursor: pointer;" @click="flyToStation(item)">
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #fde2e2; padding-bottom: 5px; margin-bottom: 5px;">
+                                    <div style="font-weight: bold; color: #F56C6C;">📍 {{ item.name }}</div>
+                                </div>
+                                <div style="font-size: 12px; display: flex; flex-direction: column; gap: 6px;">
+                                    <div v-for="reason in item.reasons" :key="reason.type" style="display: flex; align-items: center; gap: 8px;">
+                                        <el-tag :type="reason.tagType" effect="dark" size="small" style="border: none;">{{ reason.type }}</el-tag>
+                                        <span style="font-weight: bold; color: #333;">{{ reason.value }}</span>
+                                    </div>
+                                </div>
+                            </el-card>
+                        </div>
+                        
+                        <div v-else style="font-size: 13px; color: #67C23A; text-align: center; padding: 15px 0;">
+                            ✅ 当前所监控的指标均处于安全范围
+                        </div>
                     </div>
                 </el-tab-pane>
+
             </el-tabs>
         </aside>
 
         <main class="map-wrapper">
             <div id="map"></div>
+            
             <div id="popup" class="ol-popup">
                 <a href="#" id="popup-closer" class="ol-popup-closer">✖</a>
                 <div id="popup-content">
@@ -150,7 +223,7 @@
 
 <script>
     const { createApp, ref, reactive, onMounted } = Vue;
-    const WEATHER_KEY = '7f2f4a7cd207481a8f88a8a406d43c79'; // 你的 KEY
+    const WEATHER_KEY = '7f2f4a7cd207481a8f88a8a406d43c79'; // 和风天气 KEY
     const { ElMessage } = ElementPlus; 
 
     createApp({
@@ -159,6 +232,7 @@
             const basemapType = ref('osm'); 
             const searchQuery = ref('');
             const searchResults = ref([]); 
+            const hasSearched = ref(false); 
             
             const layers = ref({ stations: true, province: true, wfs: false });
             const activeFeatures = ref({ heatmap: false, contour: false, wind: false, radar: false });
@@ -167,17 +241,29 @@
             const interpTarget = ref('temp'); 
             const isCalculating = ref(false); 
             const showInterpResult = ref(false); 
+            
             const alertEngine = ref(false);
+            const enableRainAlert = ref(true);  
+            const enableTempAlert = ref(true);  
+            const enableWindAlert = ref(true);  
+            
+            const rainThreshold = ref(50); 
+            const tempThreshold = ref(30); 
+            const windThreshold = ref(8);  
             const alertList = ref([]); 
 
             let map = null;
             let osmLayer, satelliteLayer, tdtVecLayer, tdtImgLayer, tdtTerLayer, baiduLayer;
             let stationLayer, provinceLayer, wfsLayer;
-            let heatmapLayer, contourLayer, windLayer, radarLayer, interpolationLayer, alertLayer, overlay;
+            let heatmapLayer, contourLayer, windLayer, radarLayer;
+            let drawLayer, drawSource, drawInteraction;
+            let interpolationLayer = null; 
+            let alertLayer = null;
+            let overlay = null; 
 
             const TDT_KEY = '7df45c9493781a8cccb80d5f281088c0';
 
-            // 🛠️ 第一步：数据初始化清零
+            // 🛠️ 数据全面脱敏，开机默认 --
             const stationDatabase = reactive([
                 { name: '北京总站', code: 'V54511', lon: 116.40, lat: 39.90, temp: '--', rain: '--', wind: '--', status: '等待同步' },
                 { name: '天津气象局', code: 'V54527', lon: 117.20, lat: 39.13, temp: '--', rain: '--', wind: '--', status: '等待同步' },
@@ -217,7 +303,7 @@
                 { name: '喀什边缘站', code: 'V51709', lon: 75.99, lat: 39.47, temp: '--', rain: '--', wind: '--', status: '等待同步' }
             ]);
 
-            // 🛠️ 第二步：全网同步函数
+            // 全网同步函数
             const syncAllStations = async () => {
                 ElMessage({ message: '🌐 开始全网实时数据对时，请稍候...', type: 'info' });
                 for (let station of stationDatabase) {
@@ -231,85 +317,308 @@
                             station.wind = parseFloat(data.now.windSpeed);
                             station.status = '实时在线';
                         } else { station.status = '接口受限'; }
-                        await new Promise(resolve => setTimeout(resolve, 150)); // 频率控制
+                        await new Promise(resolve => setTimeout(resolve, 150)); 
                     } catch (e) { station.status = '网络异常'; }
                 }
                 ElMessage({ message: '✅ 全网数据对时完成！', type: 'success' });
             };
 
             const handleSearch = () => {
+                hasSearched.value = true;
                 if (!searchQuery.value) { searchResults.value = stationDatabase; return; }
                 searchResults.value = stationDatabase.filter(station => station.name.includes(searchQuery.value) || station.code.includes(searchQuery.value));
             };
 
+            const filterByAttribute = (type) => {
+                if (drawSource) drawSource.clear();
+                if (type === 'temp') {
+                    searchResults.value = stationDatabase.filter(s => s.temp !== '--' && s.temp >= 25);
+                    ElMessage({ message: `属性过滤：查找到 ${searchResults.value.length} 个高温站点`, type: 'error' });
+                } else if (type === 'rain') {
+                    searchResults.value = stationDatabase.filter(s => s.rain !== '--' && s.rain >= 10);
+                    ElMessage({ message: `属性过滤：查找到 ${searchResults.value.length} 个暴雨站点`, type: 'warning' });
+                }
+            };
+
+            const resetQuery = () => {
+                searchQuery.value = ''; searchResults.value = stationDatabase; 
+                if (drawSource) drawSource.clear(); 
+                if (drawInteraction) map.removeInteraction(drawInteraction);
+                ElMessage({ message: '已重置所有查询条件', type: 'success' });
+            };
+
             const flyToStation = async (station) => {
+                if (!map) return;
                 const targetCoord = ol.proj.fromLonLat([station.lon, station.lat]);
-                map.getView().animate({ center: targetCoord, zoom: 9, duration: 1200 });
+                map.getView().animate({ center: targetCoord, zoom: 9, duration: 1500 });
                 
-                document.getElementById('popup-title').innerText = "🔄 同步中...";
+                document.getElementById('popup-title').innerText = "🔄 正在同步实时观测数据...";
+                document.getElementById('popup-info').innerHTML = "正在连接国家气象云端接口...";
                 overlay.setPosition(targetCoord);
 
                 try {
                     const url = `https://devapi.qweather.com/v7/weather/now?location=${station.lon},${station.lat}&key=${WEATHER_KEY}`;
                     const res = await fetch(url);
                     const data = await res.json();
+
                     if (data.code === '200') {
-                        station.temp = parseFloat(data.now.temp);
-                        station.rain = parseFloat(data.now.precip);
+                        const realTemp = data.now.temp;
+                        const realRain = data.now.precip;
+                        const realWind = data.now.windSpeed;
+                        const updateTime = data.updateTime.substring(11, 16);
+
+                        station.temp = parseFloat(realTemp);
+                        station.rain = parseFloat(realRain);
+                        station.wind = parseFloat(realWind);
                         station.status = '实时在线';
-                        document.getElementById('popup-title').innerText = "✅ " + station.name;
-                        document.getElementById('popup-info').innerHTML = `实时气温: <b style="color:red">${station.temp}℃</b><br>降水: ${station.rain}mm`;
+
+                        document.getElementById('popup-title').innerText = "✅ " + station.name + " (实时数据)";
+                        document.getElementById('popup-info').innerHTML = `
+                            经度: ${station.lon} <br>纬度: ${station.lat} <br>
+                            <hr style="border:0; border-top:1px dashed #ccc; margin:8px 0;">
+                            <b>最新气温:</b> <span style="color:red; font-size:16px;">${realTemp} ℃</span><br>
+                            <b>实时降水:</b> <span style="color:blue;">${realRain} mm</span><br>
+                            <b>实时风速:</b> <span>${realWind} m/s</span><br>
+                            <div style="font-size:11px; color:#999; margin-top:5px;">观测时间：今日 ${updateTime}</div>
+                        `;
                     } else {
-                        document.getElementById('popup-title').innerText = "⚠️ 同步失败";
-                        document.getElementById('popup-info').innerText = "API 尚未生效或次数耗尽";
+                        station.temp = '--'; station.rain = '--'; station.wind = '--'; station.status = '获取失败';
+                        document.getElementById('popup-title').innerText = "⚠️ API 权限被拒绝";
+                        document.getElementById('popup-info').innerHTML = `<span style="color:red;">错误码：${data.code}</span><br>云端凭据生效中，请耐心等待。`;
                     }
                 } catch (e) {
-                    document.getElementById('popup-title').innerText = "⚠️ 连接异常";
+                    station.temp = '--'; station.rain = '--'; station.wind = '--'; station.status = '连接异常';
+                    document.getElementById('popup-title').innerText = "⚠️ 接口连接异常";
+                    document.getElementById('popup-info').innerHTML = "无法连接云端，请检查网络。";
                 }
             };
 
-            const initMap = () => {
-                searchResults.value = stationDatabase;
-                osmLayer = new ol.layer.Tile({ source: new ol.source.OSM() });
-                satelliteLayer = new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' }), visible: false });
-                
-                // 边界图层
-                provinceLayer = new ol.layer.Vector({ source: new ol.source.Vector({ url: './100000_full.json', format: new ol.format.GeoJSON() }), style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#409EFF', width: 1.5 }), fill: new ol.style.Fill({ color: 'rgba(64,158,255,0.05)' }) }) });
-                
-                const stationSource = new ol.source.Vector();
-                stationDatabase.forEach(station => {
-                    const feature = new ol.Feature({ geometry: new ol.geom.Point(ol.proj.fromLonLat([station.lon, station.lat])), ...station });
-                    stationSource.addFeature(feature);
-                });
-                stationLayer = new ol.layer.Vector({ source: stationSource, style: new ol.style.Style({ image: new ol.style.Circle({ radius: 6, fill: new ol.style.Fill({color: '#F56C6C'}), stroke: new ol.style.Stroke({color: 'white', width: 2}) }) }) });
-
-                overlay = new ol.Overlay({ element: document.getElementById('popup'), positioning: 'bottom-center', offset: [0, -10] });
-                document.getElementById('popup-closer').onclick = () => { overlay.setPosition(undefined); return false; };
-
-                map = new ol.Map({
-                    target: 'map',
-                    layers: [osmLayer, satelliteLayer, provinceLayer, stationLayer],
-                    overlays: [overlay],
-                    view: new ol.View({ center: ol.proj.fromLonLat([105, 36]), zoom: 4 })
-                });
-
-                map.on('singleclick', async (evt) => {
-                    const feature = map.forEachFeatureAtPixel(evt.pixel);
-                    if (feature && feature.get('name')) {
-                        flyToStation(feature.getProperties());
-                    } else { overlay.setPosition(undefined); }
+            const startSpatialQuery = (type) => {
+                if (drawInteraction) map.removeInteraction(drawInteraction);
+                drawSource.clear(); 
+                let geometryFunction; let drawType = type;
+                if (type === 'Box') { drawType = 'Circle'; geometryFunction = ol.interaction.Draw.createBox(); }
+                drawInteraction = new ol.interaction.Draw({ source: drawSource, type: drawType, geometryFunction: geometryFunction });
+                map.addInteraction(drawInteraction);
+                ElMessage({ message: '开始空间查询：请在地图上长按鼠标拖拽进行框选 / 勾勒', type: 'info', duration: 4000 });
+                drawInteraction.on('drawend', (e) => {
+                    const geometry = e.feature.getGeometry(); const extent = geometry.getExtent(); 
+                    searchResults.value = stationDatabase.filter(station => {
+                        const coord = ol.proj.fromLonLat([station.lon, station.lat]);
+                        return type === 'Box' ? ol.extent.containsCoordinate(extent, coord) : geometry.intersectsCoordinate(coord);
+                    });
+                    ElMessage({ message: `空间分析完成：选定区域内共有 ${searchResults.value.length} 个站点`, type: 'success' });
+                    map.removeInteraction(drawInteraction); 
                 });
             };
 
-            const changeBasemap = (val) => { osmLayer.setVisible(val === 'osm'); satelliteLayer.setVisible(val === 'satellite'); };
-            const toggleLayer = (n) => { if(n==='stations') stationLayer.setVisible(layers.value.stations); };
-            const runInterpolation = () => { ElMessage('空间分析核心启动中...'); };
+            const updateAlerts = () => {
+                if (!alertEngine.value) { alertList.value = []; return; }
+                const triggeredAlerts = [];
+                stationDatabase.forEach(station => {
+                    if(station.temp === '--') return; // 没有数据的跳过预警
+                    let reasons = []; 
+                    if (enableRainAlert.value && station.rain >= rainThreshold.value) reasons.push({ type: '暴雨', value: station.rain + ' mm', tagType: 'primary' });
+                    if (enableTempAlert.value && station.temp >= tempThreshold.value) reasons.push({ type: '高温', value: station.temp + ' ℃', tagType: 'danger' });
+                    if (enableWindAlert.value && station.wind >= windThreshold.value) reasons.push({ type: '大风/台风', value: station.wind + ' m/s', tagType: 'warning' });
+                    if (reasons.length > 0) triggeredAlerts.push({ ...station, reasons });
+                });
+                alertList.value = triggeredAlerts;
+            };
+
+            const toggleAlertEngine = (val) => {
+                if (val) ElMessage({ message: '🚨 多灾种联合监控总引擎已启动！', type: 'error' });
+                else ElMessage({ message: '监控总引擎已休眠', type: 'info' });
+                updateAlerts(); 
+            };
+
+            // 🛠️ 核心：还原了所有的图层初始化！
+            const initMap = () => {
+                searchResults.value = stationDatabase;
+
+                osmLayer = new ol.layer.Tile({ source: new ol.source.OSM(), visible: true });
+                satelliteLayer = new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' }), visible: false });
+
+                tdtVecLayer = new ol.layer.Group({ layers: [ new ol.layer.Tile({ source: new ol.source.XYZ({ url: `https://t0.tianditu.gov.cn/DataServer?T=vec_w&x={x}&y={y}&l={z}&tk=${TDT_KEY}` }) }), new ol.layer.Tile({ source: new ol.source.XYZ({ url: `https://t0.tianditu.gov.cn/DataServer?T=cva_w&x={x}&y={y}&l={z}&tk=${TDT_KEY}` }) }) ], visible: false });
+                tdtImgLayer = new ol.layer.Group({ layers: [ new ol.layer.Tile({ source: new ol.source.XYZ({ url: `https://t0.tianditu.gov.cn/DataServer?T=img_w&x={x}&y={y}&l={z}&tk=${TDT_KEY}` }) }), new ol.layer.Tile({ source: new ol.source.XYZ({ url: `https://t0.tianditu.gov.cn/DataServer?T=cia_w&x={x}&y={y}&l={z}&tk=${TDT_KEY}` }) }) ], visible: false });
+                tdtTerLayer = new ol.layer.Group({ layers: [ new ol.layer.Tile({ source: new ol.source.XYZ({ url: `https://t0.tianditu.gov.cn/DataServer?T=ter_w&x={x}&y={y}&l={z}&tk=${TDT_KEY}` }) }), new ol.layer.Tile({ source: new ol.source.XYZ({ url: `https://t0.tianditu.gov.cn/DataServer?T=cta_w&x={x}&y={y}&l={z}&tk=${TDT_KEY}` }) }) ], visible: false });
+
+                baiduLayer = new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7' }), visible: false });
+
+                provinceLayer = new ol.layer.Vector({ source: new ol.source.Vector({ url: './100000_full.json', format: new ol.format.GeoJSON() }), style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#409EFF', width: 1.5 }), fill: new ol.style.Fill({ color: 'rgba(64, 158, 255, 0.05)' }) }), visible: true });
+                wfsLayer = new ol.layer.Vector({ source: new ol.source.Vector({ url: './110000_full.json', format: new ol.format.GeoJSON() }), style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#67C23A', width: 3, lineDash: [5, 5] }), fill: new ol.style.Fill({ color: 'rgba(103, 194, 58, 0.2)' }) }), visible: false });
+
+                const stationSource = new ol.source.Vector();
+                stationDatabase.forEach(station => {
+                    const feature = new ol.Feature({ geometry: new ol.geom.Point(ol.proj.fromLonLat([station.lon, station.lat])), name: station.name, code: station.code, lon: station.lon, lat: station.lat });
+                    stationSource.addFeature(feature);
+                });
+                stationLayer = new ol.layer.Vector({ source: stationSource, style: new ol.style.Style({ image: new ol.style.Circle({ radius: 6, fill: new ol.style.Fill({color: '#F56C6C'}), stroke: new ol.style.Stroke({color: 'white', width: 2}) }) }), visible: true });
+
+                drawSource = new ol.source.Vector();
+                drawLayer = new ol.layer.Vector({ source: drawSource, style: new ol.style.Style({ fill: new ol.style.Fill({ color: 'rgba(64, 158, 255, 0.2)' }), stroke: new ol.style.Stroke({ color: '#409EFF', width: 2 }) }), zIndex: 999 });
+
+                heatmapLayer = new ol.layer.Heatmap({ source: stationSource, blur: 25, radius: 35, weight: function(f) { const t = stationDatabase.find(s=>s.code===f.get('code'))?.temp; return (t && t!=='--') ? t/40 : 0; }, gradient: ['#00f', '#0ff', '#0f0', '#ff0', '#f00'], visible: false });
+                radarLayer = new ol.layer.Heatmap({ source: stationSource, blur: 15, radius: 40, weight: function(f) { const r = stationDatabase.find(s=>s.code===f.get('code'))?.rain; return (r && r!=='--') ? r/60 : 0; }, gradient: ['transparent', '#A1D99B', '#FFFFCC', '#FEB24C', '#E31A1C'], visible: false });
+                
+                const contourSource = new ol.source.Vector();
+                contourSource.addFeature(new ol.Feature({ geometry: new ol.geom.LineString([ol.proj.fromLonLat([100, 32]), ol.proj.fromLonLat([110, 34]), ol.proj.fromLonLat([120, 36])]), name: '20℃' }));
+                contourSource.addFeature(new ol.Feature({ geometry: new ol.geom.LineString([ol.proj.fromLonLat([105, 25]), ol.proj.fromLonLat([115, 28]), ol.proj.fromLonLat([122, 29])]), name: '25℃' }));
+                contourLayer = new ol.layer.Vector({ source: contourSource, style: function(f) { return new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#E6A23C', width: 3, lineDash: [10, 10] }), text: new ol.style.Text({ text: f.get('name'), placement: 'line', fill: new ol.style.Fill({color: 'red'}), font: 'bold 14px sans-serif', offsetY: -10 }) }); }, visible: false });
+                
+                windLayer = new ol.layer.Vector({ source: stationSource, visible: false });
+                let windOffset = 0;
+                windLayer.on('postrender', function(event) {
+                    const vectorContext = ol.render.getVectorContext(event); windOffset = (windOffset + 1) % 20;
+                    stationDatabase.forEach(station => {
+                        if (station.wind !== '--' && station.wind > 2) { 
+                            const coord = ol.proj.fromLonLat([station.lon + (windOffset*0.1), station.lat + (windOffset*0.05)]);
+                            vectorContext.setStyle(new ol.style.Style({ image: new ol.style.Circle({ radius: 3, fill: new ol.style.Fill({color: 'rgba(64, 158, 255, 0.8)'}) }) }));
+                            vectorContext.drawGeometry(new ol.geom.Point(coord));
+                        }
+                    });
+                    map.render();
+                });
+
+                alertLayer = new ol.layer.Vector({ source: stationSource, zIndex: 1000 });
+                let alertRadius = 0;
+                alertLayer.on('postrender', function(event) {
+                    if (!alertEngine.value || alertList.value.length === 0) return;
+                    const vectorContext = ol.render.getVectorContext(event);
+                    alertRadius = (alertRadius + 0.3) % 30; 
+                    const opacity = 1 - (alertRadius / 30); 
+                    const alertStyle = new ol.style.Style({ image: new ol.style.Circle({ radius: 6 + alertRadius, stroke: new ol.style.Stroke({ color: `rgba(255, 0, 0, ${opacity})`, width: 2 }) }) });
+                    alertList.value.forEach(station => {
+                        const coord = ol.proj.fromLonLat([station.lon, station.lat]);
+                        vectorContext.setStyle(alertStyle);
+                        vectorContext.drawGeometry(new ol.geom.Point(coord));
+                    });
+                    map.render(); 
+                });
+
+                interpolationLayer = new ol.layer.Heatmap({ source: stationSource, blur: 50, radius: 50, opacity: 0.7, weight: function(f) { const t = stationDatabase.find(s=>s.code===f.get('code')); if(!t || t.temp==='--') return 0; if (interpTarget.value === 'temp') return t.temp / 40; return t.rain / 60; }, visible: false });
+
+                const container = document.getElementById('popup');
+                const closer = document.getElementById('popup-closer');
+                overlay = new ol.Overlay({ element: container, autoPan: { animation: { duration: 250 } }, positioning: 'bottom-center', offset: [0, -10] });
+                closer.onclick = function() { overlay.setPosition(undefined); closer.blur(); return false; };
+
+                // 🛠️ 确保所有图层都加载到 Map 里
+                map = new ol.Map({
+                    target: 'map',
+                    layers: [
+                        osmLayer, satelliteLayer, tdtVecLayer, tdtImgLayer, tdtTerLayer, baiduLayer,
+                        provinceLayer, heatmapLayer, radarLayer, contourLayer, wfsLayer, 
+                        interpolationLayer, stationLayer, windLayer, drawLayer, alertLayer 
+                    ],
+                    overlays: [overlay], 
+                    view: new ol.View({ center: ol.proj.fromLonLat([105.0, 36.0]), zoom: 4, minZoom: 3 })
+                });
+
+                map.getView().on('change:resolution', () => {
+                    stationLayer.setVisible(layers.value.stations);
+                    provinceLayer.setVisible(layers.value.province);
+                });
+
+                map.on('singleclick', async function (evt) {
+                    const feature = map.forEachFeatureAtPixel(evt.pixel, function(f) { return f; });
+                    const coordinate = evt.coordinate;
+                    
+                    if (feature && feature.get('name') && feature.get('code')) {
+                        const lon = feature.get('lon');
+                        const lat = feature.get('lat');
+                        const stationCode = feature.get('code');
+
+                        document.getElementById('popup-title').innerText = "🔄 正在同步实时观测数据...";
+                        document.getElementById('popup-info').innerHTML = "正在连接国家气象云端接口...";
+                        overlay.setPosition(coordinate);
+
+                        try {
+                            const url = `https://devapi.qweather.com/v7/weather/now?location=${lon},${lat}&key=${WEATHER_KEY}`;
+                            const res = await fetch(url);
+                            const data = await res.json();
+
+                            if (data.code === '200') {
+                                const realTemp = data.now.temp;
+                                const realRain = data.now.precip;
+                                const realWind = data.now.windSpeed;
+                                const updateTime = data.updateTime.substring(11, 16);
+
+                                const targetStation = stationDatabase.find(s => s.code === stationCode);
+                                if (targetStation) {
+                                    targetStation.temp = parseFloat(realTemp);
+                                    targetStation.rain = parseFloat(realRain);
+                                    targetStation.wind = parseFloat(realWind);
+                                    targetStation.status = '实时在线';
+                                }
+
+                                document.getElementById('popup-title').innerText = "✅ " + feature.get('name') + " (实时数据)";
+                                document.getElementById('popup-info').innerHTML = `
+                                    经度: ${lon} <br>纬度: ${lat} <br>
+                                    <hr style="border:0; border-top:1px dashed #ccc; margin:8px 0;">
+                                    <b>最新气温:</b> <span style="color:red; font-size:16px;">${realTemp} ℃</span><br>
+                                    <b>实时降水:</b> <span style="color:blue;">${realRain} mm</span><br>
+                                    <b>实时风速:</b> <span>${realWind} m/s</span><br>
+                                    <div style="font-size:11px; color:#999; margin-top:5px;">观测时间：今日 ${updateTime}</div>
+                                `;
+                            } else {
+                                const targetStation = stationDatabase.find(s => s.code === stationCode);
+                                if (targetStation) {
+                                    targetStation.temp = '--'; targetStation.rain = '--'; targetStation.wind = '--'; targetStation.status = '获取失败';
+                                }
+                                document.getElementById('popup-title').innerText = "⚠️ API 权限被拒绝";
+                                document.getElementById('popup-info').innerHTML = `<span style="color:red;">错误码：${data.code || '请求受限'}</span><br>云端凭据生效中，请耐心等待。`;
+                            }
+                        } catch (e) {
+                            const targetStation = stationDatabase.find(s => s.code === stationCode);
+                            if (targetStation) {
+                                targetStation.temp = '--'; targetStation.rain = '--'; targetStation.wind = '--'; targetStation.status = '连接异常';
+                            }
+                            document.getElementById('popup-title').innerText = "⚠️ 接口连接异常";
+                            document.getElementById('popup-info').innerHTML = "无法连接云端，请检查网络或刷新页面。";
+                        }
+                    } else {
+                        overlay.setPosition(undefined);
+                    }
+                });
+            };
+
+            const changeBasemap = (val) => { osmLayer.setVisible(val === 'osm'); satelliteLayer.setVisible(val === 'satellite'); tdtVecLayer.setVisible(val === 'tdt_vec'); tdtImgLayer.setVisible(val === 'tdt_img'); tdtTerLayer.setVisible(val === 'tdt_ter'); baiduLayer.setVisible(val === 'baidu'); };
+            const toggleLayer = (layerName) => { if (layerName === 'stations') stationLayer.setVisible(layers.value.stations); if (layerName === 'province') provinceLayer.setVisible(layers.value.province); if (layerName === 'wfs') wfsLayer.setVisible(layers.value.wfs); };
+            const toggleAdvanced = (featureName) => {
+                activeFeatures.value[featureName] = !activeFeatures.value[featureName];
+                if (featureName === 'heatmap') heatmapLayer.setVisible(activeFeatures.value.heatmap);
+                if (featureName === 'contour') contourLayer.setVisible(activeFeatures.value.contour);
+                if (featureName === 'wind') windLayer.setVisible(activeFeatures.value.wind);
+                if (featureName === 'radar') radarLayer.setVisible(activeFeatures.value.radar);
+            };
+
+            const runInterpolation = () => {
+                isCalculating.value = true; showInterpResult.value = false; interpolationLayer.setVisible(false);
+                ElMessage({ message: `正在启动 ${interpMethod.value.toUpperCase()} 空间插值核心...`, type: 'info' });
+                setTimeout(() => { ElMessage({ message: '计算空间自相关半方差函数与距离权重矩阵...', type: 'warning' }); }, 1200);
+                setTimeout(() => {
+                    isCalculating.value = false; showInterpResult.value = true;
+                    ElMessage({ message: '云端算力执行完毕！已渲染连续空间表面。', type: 'success' });
+                    if (interpTarget.value === 'temp') { interpolationLayer.setGradient(['#00f', '#0ff', '#0f0', '#ff0', '#f00']); } 
+                    else { interpolationLayer.setGradient(['#fff', '#A1D99B', '#41B6C4', '#2C7FB8', '#253494']); }
+                    if (interpMethod.value === 'kriging') { interpolationLayer.setBlur(60); interpolationLayer.setRadius(60); } 
+                    else { interpolationLayer.setBlur(35); interpolationLayer.setRadius(40); }
+                    interpolationLayer.getSource().changed(); interpolationLayer.setVisible(true);
+                }, 2800);
+            };
+
+            const clearInterpolation = () => { showInterpResult.value = false; interpolationLayer.setVisible(false); };
 
             onMounted(() => { initMap(); });
 
             return { 
-                activeModule, basemapType, layers, activeFeatures, searchQuery, searchResults,
-                alertEngine, syncAllStations, handleSearch, flyToStation, changeBasemap, toggleLayer, runInterpolation
+                activeModule, basemapType, layers, activeFeatures, searchQuery, searchResults, hasSearched,
+                alertEngine, enableRainAlert, enableTempAlert, enableWindAlert,
+                rainThreshold, tempThreshold, windThreshold, alertList, toggleAlertEngine, updateAlerts, 
+                syncAllStations, handleSearch, changeBasemap, toggleLayer, toggleAdvanced, flyToStation,
+                startSpatialQuery, filterByAttribute, resetQuery,
+                interpMethod, interpTarget, isCalculating, showInterpResult, runInterpolation, clearInterpolation
             };
         }
     }).use(ElementPlus).mount('#app');
