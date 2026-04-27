@@ -25,7 +25,7 @@
         .feature-box { margin-bottom: 20px; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #ebeef5; }
         .grid-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
         
-        .ol-popup { position: absolute; background-color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; bottom: 12px; left: -50px; min-width: 220px; z-index: 2000; }
+        .ol-popup { position: absolute; background-color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; bottom: 12px; left: -50px; min-width: 260px; z-index: 2000; }
         .ol-popup:after, .ol-popup:before { top: 100%; border: solid transparent; content: " "; height: 0; width: 0; position: absolute; pointer-events: none; }
         .ol-popup:after { border-top-color: white; border-width: 10px; left: 48px; margin-left: -10px; }
         .ol-popup:before { border-top-color: #cccccc; border-width: 11px; left: 48px; margin-left: -11px; }
@@ -47,7 +47,6 @@
     <div class="main-container">
         <aside class="sidebar">
             <el-tabs v-model="activeModule" stretch>
-                
                 <el-tab-pane label="图层" name="module1">
                     <div class="feature-box" style="border-left: 4px solid #409EFF;">
                         <div class="module-title" style="color: #409EFF;">🗺️ 多源基础底图</div>
@@ -93,7 +92,7 @@
 
                     <div class="feature-box">
                         <el-button type="primary" size="small" style="width: 100%; margin-bottom: 10px;" @click="syncAllStations">
-                            🔄 一键同步全网实时数据
+                            🔄 一键同步全网真实数据 (开源无限制版)
                         </el-button>
                         <div class="module-title">🔍 文本属性检索</div>
                         <el-input v-model="searchQuery" placeholder="输入站名/编号..." clearable @input="handleSearch" @clear="resetQuery">
@@ -144,13 +143,8 @@
                             </div>
                         </div>
 
-                        <el-button type="success" size="small" style="width: 100%;" @click="runInterpolation" :loading="isCalculating">
-                            🚀 执行空间插值运算
-                        </el-button>
-                        
-                        <el-button v-if="showInterpResult" type="danger" plain size="small" style="width: 100%; margin-top: 10px;" @click="clearInterpolation">
-                            🗑️ 清除插值结果图层
-                        </el-button>
+                        <el-button type="success" size="small" style="width: 100%;" @click="runInterpolation" :loading="isCalculating">🚀 执行空间插值运算</el-button>
+                        <el-button v-if="showInterpResult" type="danger" plain size="small" style="width: 100%; margin-top: 10px;" @click="clearInterpolation">🗑️ 清除插值结果图层</el-button>
                     </div>
                 </el-tab-pane>
 
@@ -183,7 +177,6 @@
 
                     <div v-if="alertEngine" class="feature-box" style="border-left: 4px solid #F56C6C; background-color: #fef0f0; transition: all 0.3s;">
                         <div class="module-title" style="color: #F56C6C; border-bottom-color: #fde2e2;">🚨 实时阈值报警清单 ({{ alertList.length }} 个站点)</div>
-                        
                         <div v-if="alertList.length > 0" style="max-height: 200px; overflow-y: auto;">
                             <el-card shadow="hover" v-for="item in alertList" :key="item.code" style="margin-bottom: 8px; border-color: #fbc4c4; cursor: pointer;" @click="flyToStation(item)">
                                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #fde2e2; padding-bottom: 5px; margin-bottom: 5px;">
@@ -197,19 +190,14 @@
                                 </div>
                             </el-card>
                         </div>
-                        
-                        <div v-else style="font-size: 13px; color: #67C23A; text-align: center; padding: 15px 0;">
-                            ✅ 当前所监控的指标均处于安全范围
-                        </div>
+                        <div v-else style="font-size: 13px; color: #67C23A; text-align: center; padding: 15px 0;">✅ 当前所监控的指标均处于安全范围</div>
                     </div>
                 </el-tab-pane>
-
             </el-tabs>
         </aside>
 
         <main class="map-wrapper">
             <div id="map"></div>
-            
             <div id="popup" class="ol-popup">
                 <a href="#" id="popup-closer" class="ol-popup-closer">✖</a>
                 <div id="popup-content">
@@ -223,7 +211,6 @@
 
 <script>
     const { createApp, ref, reactive, onMounted } = Vue;
-    const WEATHER_KEY = '7f2f4a7cd207481a8f88a8a406d43c79'; // 和风天气 KEY
     const { ElMessage } = ElementPlus; 
 
     createApp({
@@ -246,7 +233,6 @@
             const enableRainAlert = ref(true);  
             const enableTempAlert = ref(true);  
             const enableWindAlert = ref(true);  
-            
             const rainThreshold = ref(50); 
             const tempThreshold = ref(30); 
             const windThreshold = ref(8);  
@@ -263,7 +249,7 @@
 
             const TDT_KEY = '7df45c9493781a8cccb80d5f281088c0';
 
-            // 🛠️ 数据全面脱敏，开机默认 --
+            // 开机默认 --
             const stationDatabase = reactive([
                 { name: '北京总站', code: 'V54511', lon: 116.40, lat: 39.90, temp: '--', rain: '--', wind: '--', status: '等待同步' },
                 { name: '天津气象局', code: 'V54527', lon: 117.20, lat: 39.13, temp: '--', rain: '--', wind: '--', status: '等待同步' },
@@ -303,24 +289,31 @@
                 { name: '喀什边缘站', code: 'V51709', lon: 75.99, lat: 39.47, temp: '--', rain: '--', wind: '--', status: '等待同步' }
             ]);
 
-            // 全网同步函数
+            // 🚀 核心修改 1：全网同步函数更换为 Open-Meteo 开源接口！完全不需要 KEY！
             const syncAllStations = async () => {
-                ElMessage({ message: '🌐 开始全网实时数据对时，请稍候...', type: 'info' });
+                ElMessage({ message: '🌐 正在连接全球开源气象接口 Open-Meteo...', type: 'info' });
+                let successCount = 0;
+
                 for (let station of stationDatabase) {
                     try {
-                        const url = `https://devapi.qweather.com/v7/weather/now?location=${station.lon},${station.lat}&key=${WEATHER_KEY}`;
+                        const url = `https://api.open-meteo.com/v1/forecast?latitude=${station.lat}&longitude=${station.lon}&current=temperature_2m,precipitation,wind_speed_10m&wind_speed_unit=ms&timezone=Asia%2FShanghai`;
                         const res = await fetch(url);
                         const data = await res.json();
-                        if (data.code === '200') {
-                            station.temp = parseFloat(data.now.temp);
-                            station.rain = parseFloat(data.now.precip);
-                            station.wind = parseFloat(data.now.windSpeed);
+                        
+                        if (data && data.current) {
+                            station.temp = data.current.temperature_2m;
+                            station.rain = data.current.precipitation;
+                            station.wind = data.current.wind_speed_10m;
                             station.status = '实时在线';
-                        } else { station.status = '接口受限'; }
-                        await new Promise(resolve => setTimeout(resolve, 150)); 
-                    } catch (e) { station.status = '网络异常'; }
+                            successCount++;
+                        } else {
+                            station.status = '解析失败';
+                        }
+                    } catch (e) { 
+                        station.status = '请求错误';
+                    }
                 }
-                ElMessage({ message: '✅ 全网数据对时完成！', type: 'success' });
+                ElMessage({ message: `✅ 爽！成功获取 ${successCount} 个基准站真实数据，告别 KEY 限制！`, type: 'success', duration: 4000 });
             };
 
             const handleSearch = () => {
@@ -347,49 +340,47 @@
                 ElMessage({ message: '已重置所有查询条件', type: 'success' });
             };
 
+            // 🚀 核心修改 2：左侧列表点击事件更换为 Open-Meteo
             const flyToStation = async (station) => {
                 if (!map) return;
                 const targetCoord = ol.proj.fromLonLat([station.lon, station.lat]);
                 map.getView().animate({ center: targetCoord, zoom: 9, duration: 1500 });
                 
-                document.getElementById('popup-title').innerText = "🔄 正在同步实时观测数据...";
-                document.getElementById('popup-info').innerHTML = "正在连接国家气象云端接口...";
+                document.getElementById('popup-title').innerText = "🔄 正在请求开源真实数据...";
+                document.getElementById('popup-info').innerHTML = "告别和风，连接 Open-Meteo...";
                 overlay.setPosition(targetCoord);
 
                 try {
-                    const url = `https://devapi.qweather.com/v7/weather/now?location=${station.lon},${station.lat}&key=${WEATHER_KEY}`;
+                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${station.lat}&longitude=${station.lon}&current=temperature_2m,precipitation,wind_speed_10m&wind_speed_unit=ms&timezone=Asia%2FShanghai`;
                     const res = await fetch(url);
                     const data = await res.json();
 
-                    if (data.code === '200') {
-                        const realTemp = data.now.temp;
-                        const realRain = data.now.precip;
-                        const realWind = data.now.windSpeed;
-                        const updateTime = data.updateTime.substring(11, 16);
-
-                        station.temp = parseFloat(realTemp);
-                        station.rain = parseFloat(realRain);
-                        station.wind = parseFloat(realWind);
+                    if (data && data.current) {
+                        station.temp = data.current.temperature_2m;
+                        station.rain = data.current.precipitation;
+                        station.wind = data.current.wind_speed_10m;
                         station.status = '实时在线';
 
-                        document.getElementById('popup-title').innerText = "✅ " + station.name + " (实时数据)";
+                        const timeStr = data.current.time.replace('T', ' '); // 格式化时间
+
+                        document.getElementById('popup-title').innerText = "✅ " + station.name + " (开源真实数据)";
                         document.getElementById('popup-info').innerHTML = `
                             经度: ${station.lon} <br>纬度: ${station.lat} <br>
                             <hr style="border:0; border-top:1px dashed #ccc; margin:8px 0;">
-                            <b>最新气温:</b> <span style="color:red; font-size:16px;">${realTemp} ℃</span><br>
-                            <b>实时降水:</b> <span style="color:blue;">${realRain} mm</span><br>
-                            <b>实时风速:</b> <span>${realWind} m/s</span><br>
-                            <div style="font-size:11px; color:#999; margin-top:5px;">观测时间：今日 ${updateTime}</div>
+                            <b>当前气温:</b> <span style="color:red; font-size:16px;">${station.temp} ℃</span><br>
+                            <b>当前降水:</b> <span style="color:blue;">${station.rain} mm</span><br>
+                            <b>当前风速:</b> <span>${station.wind} m/s</span><br>
+                            <div style="font-size:11px; color:#999; margin-top:5px;">数据源：Open-Meteo | ${timeStr}</div>
                         `;
                     } else {
-                        station.temp = '--'; station.rain = '--'; station.wind = '--'; station.status = '获取失败';
-                        document.getElementById('popup-title').innerText = "⚠️ API 权限被拒绝";
-                        document.getElementById('popup-info').innerHTML = `<span style="color:red;">错误码：${data.code}</span><br>云端凭据生效中，请耐心等待。`;
+                        station.status = `解析异常`;
+                        document.getElementById('popup-title').innerText = "❌ 数据解析失败";
+                        document.getElementById('popup-info').innerHTML = "获取到了数据，但格式不对。";
                     }
                 } catch (e) {
-                    station.temp = '--'; station.rain = '--'; station.wind = '--'; station.status = '连接异常';
+                    station.status = '网络断开';
                     document.getElementById('popup-title').innerText = "⚠️ 接口连接异常";
-                    document.getElementById('popup-info').innerHTML = "无法连接云端，请检查网络。";
+                    document.getElementById('popup-info').innerHTML = "无法连接开源接口，请检查网络。";
                 }
             };
 
@@ -416,7 +407,7 @@
                 if (!alertEngine.value) { alertList.value = []; return; }
                 const triggeredAlerts = [];
                 stationDatabase.forEach(station => {
-                    if(station.temp === '--') return; // 没有数据的跳过预警
+                    if(station.temp === '--') return; 
                     let reasons = []; 
                     if (enableRainAlert.value && station.rain >= rainThreshold.value) reasons.push({ type: '暴雨', value: station.rain + ' mm', tagType: 'primary' });
                     if (enableTempAlert.value && station.temp >= tempThreshold.value) reasons.push({ type: '高温', value: station.temp + ' ℃', tagType: 'danger' });
@@ -432,7 +423,6 @@
                 updateAlerts(); 
             };
 
-            // 🛠️ 核心：还原了所有的图层初始化！
             const initMap = () => {
                 searchResults.value = stationDatabase;
 
@@ -503,7 +493,6 @@
                 overlay = new ol.Overlay({ element: container, autoPan: { animation: { duration: 250 } }, positioning: 'bottom-center', offset: [0, -10] });
                 closer.onclick = function() { overlay.setPosition(undefined); closer.blur(); return false; };
 
-                // 🛠️ 确保所有图层都加载到 Map 里
                 map = new ol.Map({
                     target: 'map',
                     layers: [
@@ -520,62 +509,52 @@
                     provinceLayer.setVisible(layers.value.province);
                 });
 
+                // 🚀 核心修改 3：红点点击事件更换为 Open-Meteo
                 map.on('singleclick', async function (evt) {
                     const feature = map.forEachFeatureAtPixel(evt.pixel, function(f) { return f; });
                     const coordinate = evt.coordinate;
                     
                     if (feature && feature.get('name') && feature.get('code')) {
-                        const lon = feature.get('lon');
-                        const lat = feature.get('lat');
-                        const stationCode = feature.get('code');
+                        const lon = feature.get('lon'); const lat = feature.get('lat'); const stationCode = feature.get('code');
+                        const targetStation = stationDatabase.find(s => s.code === stationCode);
 
-                        document.getElementById('popup-title').innerText = "🔄 正在同步实时观测数据...";
-                        document.getElementById('popup-info').innerHTML = "正在连接国家气象云端接口...";
+                        document.getElementById('popup-title').innerText = "🔄 正在请求开源真实数据...";
+                        document.getElementById('popup-info').innerHTML = "告别和风，连接 Open-Meteo...";
                         overlay.setPosition(coordinate);
 
                         try {
-                            const url = `https://devapi.qweather.com/v7/weather/now?location=${lon},${lat}&key=${WEATHER_KEY}`;
+                            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation,wind_speed_10m&wind_speed_unit=ms&timezone=Asia%2FShanghai`;
                             const res = await fetch(url);
                             const data = await res.json();
 
-                            if (data.code === '200') {
-                                const realTemp = data.now.temp;
-                                const realRain = data.now.precip;
-                                const realWind = data.now.windSpeed;
-                                const updateTime = data.updateTime.substring(11, 16);
-
-                                const targetStation = stationDatabase.find(s => s.code === stationCode);
+                            if (data && data.current) {
                                 if (targetStation) {
-                                    targetStation.temp = parseFloat(realTemp);
-                                    targetStation.rain = parseFloat(realRain);
-                                    targetStation.wind = parseFloat(realWind);
+                                    targetStation.temp = data.current.temperature_2m;
+                                    targetStation.rain = data.current.precipitation;
+                                    targetStation.wind = data.current.wind_speed_10m;
                                     targetStation.status = '实时在线';
                                 }
+                                
+                                const timeStr = data.current.time.replace('T', ' ');
 
-                                document.getElementById('popup-title').innerText = "✅ " + feature.get('name') + " (实时数据)";
+                                document.getElementById('popup-title').innerText = "✅ " + feature.get('name') + " (开源真实数据)";
                                 document.getElementById('popup-info').innerHTML = `
                                     经度: ${lon} <br>纬度: ${lat} <br>
                                     <hr style="border:0; border-top:1px dashed #ccc; margin:8px 0;">
-                                    <b>最新气温:</b> <span style="color:red; font-size:16px;">${realTemp} ℃</span><br>
-                                    <b>实时降水:</b> <span style="color:blue;">${realRain} mm</span><br>
-                                    <b>实时风速:</b> <span>${realWind} m/s</span><br>
-                                    <div style="font-size:11px; color:#999; margin-top:5px;">观测时间：今日 ${updateTime}</div>
+                                    <b>当前气温:</b> <span style="color:red; font-size:16px;">${data.current.temperature_2m} ℃</span><br>
+                                    <b>当前降水:</b> <span style="color:blue;">${data.current.precipitation} mm</span><br>
+                                    <b>当前风速:</b> <span>${data.current.wind_speed_10m} m/s</span><br>
+                                    <div style="font-size:11px; color:#999; margin-top:5px;">数据源：Open-Meteo | ${timeStr}</div>
                                 `;
                             } else {
-                                const targetStation = stationDatabase.find(s => s.code === stationCode);
-                                if (targetStation) {
-                                    targetStation.temp = '--'; targetStation.rain = '--'; targetStation.wind = '--'; targetStation.status = '获取失败';
-                                }
-                                document.getElementById('popup-title').innerText = "⚠️ API 权限被拒绝";
-                                document.getElementById('popup-info').innerHTML = `<span style="color:red;">错误码：${data.code || '请求受限'}</span><br>云端凭据生效中，请耐心等待。`;
+                                if (targetStation) { targetStation.status = `解析异常`; }
+                                document.getElementById('popup-title').innerText = "❌ 数据解析失败";
+                                document.getElementById('popup-info').innerHTML = `获取到了数据，但格式不对。`;
                             }
                         } catch (e) {
-                            const targetStation = stationDatabase.find(s => s.code === stationCode);
-                            if (targetStation) {
-                                targetStation.temp = '--'; targetStation.rain = '--'; targetStation.wind = '--'; targetStation.status = '连接异常';
-                            }
+                            if (targetStation) { targetStation.status = '网络断开'; }
                             document.getElementById('popup-title').innerText = "⚠️ 接口连接异常";
-                            document.getElementById('popup-info').innerHTML = "无法连接云端，请检查网络或刷新页面。";
+                            document.getElementById('popup-info').innerHTML = "无法连接开源接口，请检查网络。";
                         }
                     } else {
                         overlay.setPosition(undefined);
