@@ -313,7 +313,7 @@
                         station.status = '请求错误';
                     }
                 }
-                ElMessage({ message: `✅ 爽！成功获取 ${successCount} 个基准站真实数据，告别 KEY 限制！`, type: 'success', duration: 4000 });
+                ElMessage({ message: `✅ 成功获取 ${successCount} 个基准站真实数据，告别 KEY 限制！`, type: 'success', duration: 4000 });
             };
 
             const handleSearch = () => {
@@ -347,7 +347,7 @@
                 map.getView().animate({ center: targetCoord, zoom: 9, duration: 1500 });
                 
                 document.getElementById('popup-title').innerText = "🔄 正在请求开源真实数据...";
-                document.getElementById('popup-info').innerHTML = "告别和风，连接 Open-Meteo...";
+                document.getElementById('popup-info').innerHTML = "连接 Open-Meteo...";
                 overlay.setPosition(targetCoord);
 
                 try {
