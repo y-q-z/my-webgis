@@ -519,7 +519,7 @@
                         const targetStation = stationDatabase.find(s => s.code === stationCode);
 
                         document.getElementById('popup-title').innerText = "🔄 正在请求开源真实数据...";
-                        document.getElementById('popup-info').innerHTML = "告别和风，连接 Open-Meteo...";
+                        document.getElementById('popup-info').innerHTML = "连接 Open-Meteo...";
                         overlay.setPosition(coordinate);
 
                         try {
@@ -537,7 +537,7 @@
                                 
                                 const timeStr = data.current.time.replace('T', ' ');
 
-                                document.getElementById('popup-title').innerText = "✅ " + feature.get('name') + " (开源真实数据)";
+                                document.getElementById('popup-title').innerText = "✅ " + feature.get('name') + "";
                                 document.getElementById('popup-info').innerHTML = `
                                     经度: ${lon} <br>纬度: ${lat} <br>
                                     <hr style="border:0; border-top:1px dashed #ccc; margin:8px 0;">
